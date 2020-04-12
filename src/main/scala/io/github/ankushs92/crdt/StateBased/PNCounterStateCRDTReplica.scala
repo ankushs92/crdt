@@ -1,14 +1,14 @@
-package io.github.ankushs92.crdt.CvRDT
+package io.github.ankushs92.crdt.StateBased
 
 import java.net.InetSocketAddress
 
-import io.github.ankushs92.crdt.CvRDT.payload.{IntVersionVector, PNCounterPayload}
 import io.github.ankushs92.crdt.StateCRDTReplica
+import io.github.ankushs92.crdt.payload.{IntVersionVector, PNCounterPayload}
 
 case class PNCounterStateCRDTReplica (replicaId : Int, replicaCount : Int, addr : InetSocketAddress) extends StateCRDTReplica[Int, PNCounterPayload, Int] {
 
-  private val incVerVec = IntVersionVector(replicaCount)
-  private val decVerVec = IntVersionVector(replicaCount)
+  private val incVerVec = initialValue.incVerVec
+  private val decVerVec = initialValue.decVerVec
 
   override def update(write: Int): Unit = {
     if(write == -1) {
@@ -27,10 +27,10 @@ case class PNCounterStateCRDTReplica (replicaId : Int, replicaCount : Int, addr 
 
   override def getCurrentState = new PNCounterPayload(incVerVec, decVerVec)
 
-  override def merge(payload1: PNCounterPayload, payload2: PNCounterPayload): PNCounterPayload = {
+  override def merge(replicaPayload: PNCounterPayload): PNCounterPayload = {
     (0 until replicaCount).foreach { idx =>
-      incVerVec.modifyAtIndex(idx, Math.max(payload1.incVerVec.atIndex(idx), payload2.incVerVec.atIndex(idx)))
-      decVerVec.modifyAtIndex(idx, Math.max(payload1.decVerVec.atIndex(idx), payload2.decVerVec.atIndex(idx)))
+      incVerVec.modifyAtIndex(idx, Math.max(incVerVec.atIndex(idx), replicaPayload.incVerVec.atIndex(idx)))
+      decVerVec.modifyAtIndex(idx, Math.max(decVerVec.atIndex(idx), replicaPayload.decVerVec.atIndex(idx)))
     }
     new PNCounterPayload(incVerVec, decVerVec)
   }
@@ -39,4 +39,5 @@ case class PNCounterStateCRDTReplica (replicaId : Int, replicaCount : Int, addr 
 
   override def getName: String = "pn"
 
+  override def initialValue: PNCounterPayload = new PNCounterPayload(IntVersionVector(replicaCount), IntVersionVector(replicaCount))
 }

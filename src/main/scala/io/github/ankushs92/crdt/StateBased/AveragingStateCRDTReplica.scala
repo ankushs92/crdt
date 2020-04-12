@@ -1,17 +1,17 @@
-package io.ankushs92.crdt.CvRDT
+package io.github.ankushs92.crdt.StateBased
 
 import java.net.InetSocketAddress
 
-import io.github.ankushs92.crdt.CvRDT.payload.{AveragingPayload, DoubleVersionVector, IntVersionVector}
 import io.github.ankushs92.crdt.StateCRDTReplica
+import io.github.ankushs92.crdt.payload.{AveragingPayload, DoubleVersionVector, IntVersionVector}
 
 
 
 class AveragingStateCRDTReplica(replicaId : Int, replicaCount : Int, addr : InetSocketAddress) extends StateCRDTReplica[Double, AveragingPayload, Double] {
 
-  private val positiveVerVec = DoubleVersionVector(replicaCount) //Version vector for positive real numbers
-  private val negVerVec = DoubleVersionVector(replicaCount) //Version vector for negative real numbers
-  private val countVec = IntVersionVector(replicaCount) //Version vector to maintain counts
+  private val positiveVerVec = initialValue.positiveVerVec
+  private val negVerVec = initialValue.negVerVec
+  private val countVec = initialValue.countVec
 
   override def update(write: Double): Unit = {
     if(write < 0) {
@@ -32,11 +32,11 @@ class AveragingStateCRDTReplica(replicaId : Int, replicaCount : Int, addr : Inet
 
   override def getCurrentState = new AveragingPayload(positiveVerVec, negVerVec, countVec)
 
-  override def merge(payload1: AveragingPayload, payload2: AveragingPayload): AveragingPayload = {
+  override def merge(replicaPayload: AveragingPayload): AveragingPayload = {
     (0 until replicaCount).foreach { idx =>
-      positiveVerVec.modifyAtIndex(idx, Math.max(payload1.positiveVerVec.atIndex(idx), payload2.positiveVerVec.atIndex(idx)))
-      negVerVec.modifyAtIndex(idx, Math.max(payload1.negVerVec.atIndex(idx), payload2.negVerVec.atIndex(idx)))
-      countVec.modifyAtIndex(idx, Math.max(payload1.countVec.atIndex(idx), payload2.countVec.atIndex(idx)))
+      positiveVerVec.modifyAtIndex(idx, Math.max(positiveVerVec.atIndex(idx), replicaPayload.positiveVerVec.atIndex(idx)))
+      negVerVec.modifyAtIndex(idx, Math.max(negVerVec.atIndex(idx), replicaPayload.negVerVec.atIndex(idx)))
+      countVec.modifyAtIndex(idx, Math.max(countVec.atIndex(idx), replicaPayload.countVec.atIndex(idx)))
     }
     new AveragingPayload(positiveVerVec, negVerVec, countVec)
   }
@@ -44,6 +44,8 @@ class AveragingStateCRDTReplica(replicaId : Int, replicaCount : Int, addr : Inet
   override def getAddr: InetSocketAddress = addr
 
   override def getName: String = "avg"
+
+  override def initialValue: AveragingPayload = new AveragingPayload(DoubleVersionVector(replicaCount) , DoubleVersionVector(replicaCount) , IntVersionVector(replicaCount))
 }
 
 

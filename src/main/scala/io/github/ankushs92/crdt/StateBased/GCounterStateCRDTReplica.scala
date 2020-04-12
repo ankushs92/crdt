@@ -1,19 +1,19 @@
-package io.github.ankushs92.crdt.CvRDT
+package io.github.ankushs92.crdt.StateBased
 
 import java.net.InetSocketAddress
 
-import io.github.ankushs92.crdt.CvRDT.payload.{GCounterPayload, IntVersionVector}
 import io.github.ankushs92.crdt.StateCRDTReplica
+import io.github.ankushs92.crdt.payload.{GCounterPayload, IntVersionVector}
 
 
 
 case class GCounterStateCRDTReplica(replicaId : Int, replicaCount : Int, addr : InetSocketAddress) extends StateCRDTReplica[Int, GCounterPayload, Int] {
 
-  private val versionVec = IntVersionVector(replicaCount)
+  private val versionVec = initialValue.verVec
 
-  override def merge(state1: GCounterPayload, state2: GCounterPayload): GCounterPayload = {
+  override def merge(replicaPayload: GCounterPayload): GCounterPayload = {
     (0 until replicaCount).foreach { idx =>
-      versionVec.modifyAtIndex(idx, Math.max(state1.verVec.atIndex(idx), state2.verVec.atIndex(idx)))
+      versionVec.modifyAtIndex(idx, Math.max(versionVec.atIndex(idx), replicaPayload.verVec.atIndex(idx)))
     }
     new GCounterPayload(versionVec)
   }
@@ -25,8 +25,10 @@ case class GCounterStateCRDTReplica(replicaId : Int, replicaCount : Int, addr : 
   override def update(value: Int): Unit = versionVec.incrementBy(replicaId - 1, 1)
 
   override def getAddr: InetSocketAddress = addr
+
   override def getName: String = "gCounter"
 
+  override def initialValue: GCounterPayload = new GCounterPayload(IntVersionVector(replicaCount))
 }
 
 

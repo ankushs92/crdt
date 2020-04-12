@@ -1,4 +1,4 @@
-package io.github.ankushs92.crdt.CvRDT.payload
+package io.github.ankushs92.crdt.payload
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -29,3 +29,7 @@ case class IntVersionVector(size : Int) extends VersionVector[Int] {
 
 }
 
+
+object IntVersionVector {
+
+}
