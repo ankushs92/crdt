@@ -1,6 +1,7 @@
 package io.github.ankushs92.crdt.serializer
 
-import io.ankushs92.util.Json
+import io.github.ankushs92.crdt.util.Json
+
 
 class JsonSerde[IN: Manifest] extends Serde[IN, String] {
 

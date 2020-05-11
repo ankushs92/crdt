@@ -27,4 +27,5 @@ case class DoubleVersionVector(size : Int) extends VersionVector[Double] {
 
   override def viewOverState: Array[Double] = currentState.toArray
 
+  override def isEmpty: Boolean = array.isEmpty
 }

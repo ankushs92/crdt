@@ -12,8 +12,12 @@ class LamportTimestamp  {
 
     def setNew(value : Long) = counter.set(value)
 
-    def lessThan(lamportTimestamp: LamportTimestamp) : Boolean = this.state < lamportTimestamp.state
+    def lessThan(other: LamportTimestamp) : Boolean = this.state < other.state
 
     override def toString: String = state.toString
+
+}
+
+object t extends App {
 
 }

@@ -1,4 +1,4 @@
-package io.ankushs92.util
+package io.github.ankushs92.crdt.util
 
 object Strings {
 

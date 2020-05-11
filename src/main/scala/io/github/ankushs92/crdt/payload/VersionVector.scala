@@ -5,6 +5,8 @@ import scala.util.control.Breaks.{break, breakable}
 
 trait VersionVector[T]  {
 
+  def isEmpty : Boolean
+
   def getSize : Int
 
   def currentState : ArrayBuffer[T] //Initialized to an empty ArrayBuffer

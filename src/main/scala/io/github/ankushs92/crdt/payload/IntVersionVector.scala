@@ -27,9 +27,6 @@ case class IntVersionVector(size : Int) extends VersionVector[Int] {
 
   override def viewOverState: Array[Int] = currentState.toArray
 
-}
-
-
-object IntVersionVector {
+  override def isEmpty: Boolean = array.isEmpty
 
 }
