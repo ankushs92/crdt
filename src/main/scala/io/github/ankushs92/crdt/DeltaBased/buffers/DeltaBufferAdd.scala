@@ -14,10 +14,10 @@ case class GCounterDeltaBufferAdd(value : Int) extends DeltaBufferAdd {
 case class GrowOnlySetDeltaBufferAdd[Value](value : Value) extends DeltaBufferAdd{
 }
 
-case class PositiveValueAdd(value : Double) extends SummingDeltaAdd {
+case class PositiveValueAdd(id : Int, value : Double) extends SummingDeltaAdd {
   override def getValue: Double = value
 }
 
-case class NegativeValueAdd(value : Double) extends SummingDeltaAdd {
+case class NegativeValueAdd(id : Int, value : Double) extends SummingDeltaAdd {
   override def getValue: Double = value
 }

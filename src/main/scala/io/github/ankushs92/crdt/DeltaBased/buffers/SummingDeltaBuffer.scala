@@ -47,10 +47,10 @@ class SummingDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, SummingDeltaA
     mode match {
       case WriteOp.LOCAL =>
         write match {
-          case PositiveValueAdd(_) =>
+          case PositiveValueAdd(_,_) =>
             localPosValue += recValue
             posIncremented = true
-          case NegativeValueAdd(_) =>
+          case NegativeValueAdd(_,_) =>
             localNegValue += recValue
             negIncremented = true
         }
@@ -60,20 +60,20 @@ class SummingDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, SummingDeltaA
         recDeltaGroups.get(id) match {
           case Some(oldDeltaGroup) =>
             write match {
-              case PositiveValueAdd(_) =>
+              case PositiveValueAdd(deltaGroupReplicaId, _) =>
                 val oldPos = oldDeltaGroup.pos
-                recDeltaGroups.put(id, SummingDeltaGroup(id, Math.max(oldPos, recValue), oldDeltaGroup.neg, posPresent = true, oldDeltaGroup.negPresent))
-              case NegativeValueAdd(_) =>
+                recDeltaGroups.put(id, SummingDeltaGroup(deltaGroupReplicaId, Math.max(oldPos, recValue), oldDeltaGroup.neg, posPresent = true, oldDeltaGroup.negPresent))
+              case NegativeValueAdd(deltaGroupReplicaId, _) =>
                 val oldNeg = oldDeltaGroup.neg
-                recDeltaGroups.put(id, SummingDeltaGroup(id, oldDeltaGroup.pos, Math.max(oldNeg, recValue), oldDeltaGroup.posPresent, negPresent = true))
+                recDeltaGroups.put(id, SummingDeltaGroup(deltaGroupReplicaId, oldDeltaGroup.pos, Math.max(oldNeg, recValue), oldDeltaGroup.posPresent, negPresent = true))
             }
 
           case None =>
             write match {
-              case PositiveValueAdd(_) =>
-                recDeltaGroups.put(id, SummingDeltaGroup(id, recValue, BOTTOM_VALUE, posPresent = true, negPresent = false))
-              case NegativeValueAdd(_) =>
-                recDeltaGroups.put(id, SummingDeltaGroup(id, BOTTOM_VALUE, recValue, posPresent = false, negPresent = true))
+              case PositiveValueAdd(deltaGroupReplicaId, _) =>
+                recDeltaGroups.put(id, SummingDeltaGroup(deltaGroupReplicaId, recValue, BOTTOM_VALUE, posPresent = true, negPresent = false))
+              case NegativeValueAdd(deltaGroupReplicaId, _) =>
+                recDeltaGroups.put(id, SummingDeltaGroup(deltaGroupReplicaId, BOTTOM_VALUE, recValue, posPresent = false, negPresent = true))
             }
         }
     }
@@ -83,9 +83,10 @@ class SummingDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, SummingDeltaA
     case Some(replicaIds) =>
       if(replicaIds.size == threshold) {
         recDeltaGroups.foreach { case(id, oldDeltaGroup) =>
-          if(oldDeltaGroup == deltaGroup) {
-            recDeltaGroups.remove(id)
-          }
+          recDeltaGroups.remove(id)
+//          if(oldDeltaGroup == deltaGroup) {
+//
+//          }
         }
         sendLocal = false
         posIncremented = false

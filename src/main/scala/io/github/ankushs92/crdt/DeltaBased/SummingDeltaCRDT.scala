@@ -27,7 +27,8 @@ case class SummingDeltaCRDT(
     val nbrReplicaId = delta.nbrReplicaId
     val deltaGroups = delta.payload
     deltaGroups.foreach { deltaGroup =>
-      val idx = deltaGroup.replicaId - 1
+      val deltaGroupReplicaId = deltaGroup.replicaId
+      val idx = deltaGroupReplicaId - 1
       val recPos = deltaGroup.pos
       val recNeg = deltaGroup.neg
       val posPresent = deltaGroup.posPresent
@@ -38,13 +39,13 @@ case class SummingDeltaCRDT(
       if(posPresent && recPos != currPos) {
         val newCurrPos = Math.max(recPos, currPos)
         posVerVec.modifyAtIndex(idx, newCurrPos)
-        deltaBuffer.add(nbrReplicaId, WriteOp.REMOTE, PositiveValueAdd(newCurrPos))
+        deltaBuffer.add(nbrReplicaId, WriteOp.REMOTE, PositiveValueAdd(deltaGroupReplicaId, newCurrPos))
       }
 
       if(negPresent && recNeg != currNeg) {
         val newCurrNeg = Math.max(recNeg, currNeg)
         negVerVec.modifyAtIndex(idx, newCurrNeg)
-        deltaBuffer.add(nbrReplicaId, WriteOp.REMOTE, NegativeValueAdd(newCurrNeg))
+        deltaBuffer.add(nbrReplicaId, WriteOp.REMOTE, NegativeValueAdd(deltaGroupReplicaId, newCurrNeg))
       }
     }
   }
@@ -62,13 +63,13 @@ case class SummingDeltaCRDT(
     if(isPos(write)) {
       val oldPos = posVerVec.atIndex(idx)
       posVerVec.modifyAtIndex(idx, oldPos + write)
-      deltaBuffer.add(id, WriteOp.LOCAL, PositiveValueAdd(write))
+      deltaBuffer.add(id, WriteOp.LOCAL, PositiveValueAdd(id, write))
     }
     else {
       val oldNeg = negVerVec.atIndex(idx)
       val newNeg = -write
       negVerVec.modifyAtIndex(idx, oldNeg + newNeg)
-      deltaBuffer.add(id, WriteOp.LOCAL, NegativeValueAdd(write))
+      deltaBuffer.add(id, WriteOp.LOCAL, NegativeValueAdd(id, write))
     }
   }
 

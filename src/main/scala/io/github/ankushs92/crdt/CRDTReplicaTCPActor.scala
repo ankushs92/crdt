@@ -110,6 +110,7 @@ case class CRDTReplicaPeriodicSyncActor(tcpClient : ActorRef) extends Actor {
     case Replicate(crdtType, replicaId,  nbrReplicaId, replica) =>
       val deltaGroup = replica.getDeltaBuffer.bpAndccOptimization(nbrReplicaId)
       if(deltaGroup.nonEmpty) {
+        println("Query result for replica " + replica.getReplicaId + " before sending is " + replica.asInstanceOf[SummingDeltaCRDT].query)
         tcpClient ! FilteredDeltaGroup(crdtType, replicaId, nbrReplicaId, deltaGroup)
       }
   }
@@ -117,14 +118,15 @@ case class CRDTReplicaPeriodicSyncActor(tcpClient : ActorRef) extends Actor {
 
 
 case class Replicate[StateType,
-  DeltaBufferQueryType,
-  DeltaPayload <: Payload,
-  DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
-  State,
-  QueryResult](crdtType : String,
-               replicaId : Int,
-               nbrReplicaId : Int,
-               replica : DeltaCRDTReplica[StateType, DeltaBufferQueryType, DeltaPayload, DeltaBufferType, State, QueryResult])
+                    DeltaBufferQueryType,
+                    DeltaPayload <: Payload,
+                    DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
+                    State,
+                    QueryResult]
+                    (crdtType : String,
+                     replicaId : Int,
+                     nbrReplicaId : Int,
+                     replica : DeltaCRDTReplica[StateType, DeltaBufferQueryType, DeltaPayload, DeltaBufferType, State, QueryResult])
 
 case class FilteredDeltaGroup[T](crdtType : String,
                                  replicaId : Int,
@@ -155,7 +157,6 @@ case class CRDTReplicaTCPClientActor(remote : Neighbour, replica : ActorRef) ext
       context.become {
 
         case FilteredDeltaGroup(crdtType, replicaId, nbrReplicaId, deltaGroup) =>
-          //TODO MATCH statement here
           val bytes = crdtType match {
             case CRDTTypes.G_SET =>
               val growOnlySetPayload = GrowOnlySetPayload(replicaId, crdtType, deltaGroup.toSet)
@@ -213,23 +214,23 @@ object Summing extends App {
   val addr2 = Neighbour(2, new InetSocketAddress(8082))
   val addr3 = Neighbour(3, new InetSocketAddress(8083))
 
-  //  val crdt1 = GCounterDeltaCRDT(1, 2000, new InetSocketAddress(8081) , List(addr2, addr3))
-  val crdt1 = SummingDeltaCRDT(1, 4000, new InetSocketAddress(8081) , List(addr2))
+    val crdt1 = SummingDeltaCRDT(1, 2000, new InetSocketAddress(8081) , List(addr2, addr3))
+//  val crdt1 = SummingDeltaCRDT(1, 4000, new InetSocketAddress(8081) , List(addr2))
 
   val crdt1Actor = ac.actorOf(Props(CRDTReplicaActor(crdt1)))
 
 
-  //  val crdt2 = GCounterDeltaCRDT(2, 2000, new InetSocketAddress(8082), List(addr1, addr3))
-  val crdt2 = SummingDeltaCRDT(2, 4000, new InetSocketAddress(8082), List(addr1))
+    val crdt2 = SummingDeltaCRDT(2, 2000, new InetSocketAddress(8082), List(addr1, addr3))
+//  val crdt2 = SummingDeltaCRDT(2, 4000, new InetSocketAddress(8082), List(addr1))
   val crdt2Actor = ac.actorOf(Props( CRDTReplicaActor(crdt2)))
 
-  //  val crdt3 = GCounterDeltaCRDT(3, 2000, new InetSocketAddress(8083) , List(addr1, addr2))
-  //  val crdt3Actor = ac.actorOf(Props( CRDTReplicaActor(crdt3)))
+    val crdt3 = SummingDeltaCRDT(3, 2000, new InetSocketAddress(8083) , List(addr1, addr2))
+    val crdt3Actor = ac.actorOf(Props( CRDTReplicaActor(crdt3)))
   //
 
   val replica1 = ac.actorOf(Props( TcpServer(new InetSocketAddress(8071), crdt1Actor)))
   val replica2 = ac.actorOf(Props( TcpServer(new InetSocketAddress(8072), crdt2Actor)))
-  //  val replica3 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8073), crdt3Actor)))
+    val replica3 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8073), crdt3Actor)))
 
 
 }
