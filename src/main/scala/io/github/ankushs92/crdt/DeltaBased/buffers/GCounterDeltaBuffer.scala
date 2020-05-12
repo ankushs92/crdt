@@ -5,6 +5,8 @@ import io.github.ankushs92.crdt.DeltaBased.WriteOp
 
 import scala.collection.mutable
 
+import scala.collection.mutable
+
 class GCounterDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, GCounterDeltaBufferAdd, GCounterDeltaGroup] {
 
   private val INITIAL_COUNT = 0
@@ -21,23 +23,23 @@ class GCounterDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, GCounterDelt
           case None => false
         }
         !alreadySentToReplica
-    }.values
+      }.values
 
     val local = Iterable(GCounterDeltaGroup(replicaId, localDeltaGroup))
-        .filter { local =>
-          val alreadySentToReplica = ccOptimizationMap.get(local) match {
-            case Some(_) =>  true
-            case None => false
-          }
-          !alreadySentToReplica && local.count != INITIAL_COUNT && sendLocal
+      .filter { local =>
+        val alreadySentToReplica = ccOptimizationMap.get(local) match {
+          case Some(_) =>  true
+          case None => false
+        }
+        !alreadySentToReplica && local.count != INITIAL_COUNT && sendLocal
       }
 
     //in received delta groups, send the values for those replicas that have not been acknowledged
     local ++ filtered
   }
 
-  override def add(id: Int, mode: WriteOp.Value, write: GCounterDeltaBufferAdd): Unit = {
-    val value = write.value
+  override def add[W >: GCounterDeltaBufferAdd](id: Int, mode: WriteOp.Value, write: W): Unit = {
+    val value = write.asInstanceOf[GCounterDeltaBufferAdd].value
     mode match  {
       case WriteOp.LOCAL =>
         localDeltaGroup += value
@@ -52,8 +54,6 @@ class GCounterDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, GCounterDelt
         }
     }
   }
-
-  override def addAll(id: Int, mode: WriteOp.Value, writes: Iterable[GCounterDeltaBufferAdd]): Unit = writes.foreach { add(id, mode, _) }
 
   override def removeIfThresholdReached(deltaGroup: GCounterDeltaGroup, threshold: Int): Unit = ccOptimizationMap.get(deltaGroup) match {
     case Some(replicaIds) =>

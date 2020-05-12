@@ -15,7 +15,7 @@ case class GrowOnlySetDeltaCRDT[T](
                                     syncInterval : Int,
                                     addr : InetSocketAddress,
                                     neighbours : List[Neighbour])
-                                    extends DeltaCRDTReplica[T, T, GrowOnlySetPayload[T], GrowOnlySetDeltaBuffer[T], GrowOnlySetState[T], Set[T]]
+  extends DeltaCRDTReplica[T, T, GrowOnlySetPayload[T], GrowOnlySetDeltaBuffer[T], GrowOnlySetState[T], Set[T]]
 {
 
   private val deltaBuffer = new GrowOnlySetDeltaBuffer[T](replicaId)

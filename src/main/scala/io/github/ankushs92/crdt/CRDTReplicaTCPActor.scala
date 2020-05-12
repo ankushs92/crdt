@@ -1,6 +1,7 @@
 package io.github.ankushs92.crdt
 
 import java.net.InetSocketAddress
+import java.nio.ByteBuffer
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.io.Tcp.{Bind, _}
@@ -10,6 +11,7 @@ import com.typesafe.scalalogging.Logger
 import io.github.ankushs92.crdt.DeltaBased.{GCounterDeltaCRDT, GrowOnlySetDeltaCRDT, SummingDeltaCRDT}
 import io.github.ankushs92.crdt.DeltaBased.buffers.{DeltaBuffer, DeltaBufferAdd, GCounterDeltaGroup, SummingDeltaGroup}
 import io.github.ankushs92.crdt.payload.{GCounterPayload, GrowOnlySetPayload, Payload, SummingPayload}
+import io.github.ankushs92.crdt.serializer.JsonSerde
 import io.github.ankushs92.crdt.util.Json
 
 //Use system's dispatcher as ExecutionContext
@@ -17,14 +19,14 @@ import scala.concurrent.duration._
 
 
 case class CRDTReplicaActor[StateType,
-                            DeltaBufferQueryType,
-                            DeltaPayload <: Payload[DeltaPayload],
-                            DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
-                            State,
-                            QueryResult]
-                            (replica : DeltaCRDTReplica[StateType, DeltaBufferQueryType, DeltaPayload, DeltaBufferType, State, QueryResult])
-                           (implicit system : ActorSystem)
-                            extends Actor {
+  DeltaBufferQueryType,
+  DeltaPayload <: Payload,
+  DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
+  State,
+  QueryResult]
+(replica : DeltaCRDTReplica[StateType, DeltaBufferQueryType, DeltaPayload, DeltaBufferType, State, QueryResult])
+(implicit system : ActorSystem)
+  extends Actor {
 
   private val logger = Logger(this.getClass)
   private val socket = replica.getAddr
@@ -45,6 +47,9 @@ case class CRDTReplicaActor[StateType,
         case AggType.COUNT =>
           val write = data.toInt
           replica.asInstanceOf[GCounterDeltaCRDT].update(write)
+        case AggType.SUM =>
+          val write = data.toDouble
+          replica.asInstanceOf[SummingDeltaCRDT].update(write)
       }
 
     case Bound(localAddress) =>
@@ -112,14 +117,14 @@ case class CRDTReplicaPeriodicSyncActor(tcpClient : ActorRef) extends Actor {
 
 
 case class Replicate[StateType,
-                     DeltaBufferQueryType,
-                     DeltaPayload <: Payload[DeltaPayload],
-                     DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
-                     State,
-                     QueryResult](crdtType : String,
-                                  replicaId : Int,
-                                  nbrReplicaId : Int,
-                                  replica : DeltaCRDTReplica[StateType, DeltaBufferQueryType, DeltaPayload, DeltaBufferType, State, QueryResult])
+  DeltaBufferQueryType,
+  DeltaPayload <: Payload,
+  DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
+  State,
+  QueryResult](crdtType : String,
+               replicaId : Int,
+               nbrReplicaId : Int,
+               replica : DeltaCRDTReplica[StateType, DeltaBufferQueryType, DeltaPayload, DeltaBufferType, State, QueryResult])
 
 case class FilteredDeltaGroup[T](crdtType : String,
                                  replicaId : Int,
@@ -129,6 +134,7 @@ case class FilteredDeltaGroup[T](crdtType : String,
 case class ReplicaAck[T](crdtType : String, nbrReplicaId : Int, data : Iterable[T]) extends Tcp.Event
 
 case class CRDTReplicaTCPClientActor(remote : Neighbour, replica : ActorRef) extends Actor {
+  private def getBytes[T](t : T)(implicit m: Manifest[T]): ByteBuffer = ByteBuffer.wrap(new JsonSerde[T].serialize(t).getBytes)
 
   import Tcp._
   import context.system
@@ -153,15 +159,15 @@ case class CRDTReplicaTCPClientActor(remote : Neighbour, replica : ActorRef) ext
           val bytes = crdtType match {
             case CRDTTypes.G_SET =>
               val growOnlySetPayload = GrowOnlySetPayload(replicaId, crdtType, deltaGroup.toSet)
-              growOnlySetPayload.getBytes
+              getBytes(growOnlySetPayload)
 
             case CRDTTypes.G_COUNTER =>
               val gCounterPayload = GCounterPayload(replicaId, crdtType, deltaGroup.asInstanceOf[Iterable[GCounterDeltaGroup]])
-              gCounterPayload.getBytes
+              getBytes(gCounterPayload)
 
             case CRDTTypes.SUM =>
               val summingPayload = SummingPayload(replicaId, crdtType, deltaGroup.asInstanceOf[Iterable[SummingDeltaGroup]])
-              summingPayload.getBytes
+              getBytes(summingPayload)
 
           }
           connection ! Write(ByteString(bytes), ReplicaAck(crdtType, nbrReplicaId, deltaGroup))
@@ -176,6 +182,7 @@ case class CRDTReplicaTCPClientActor(remote : Neighbour, replica : ActorRef) ext
           context.stop(self)
 
       }
+
   }}
 
 
@@ -199,67 +206,67 @@ case class CRDTReplicaTcpConnHandlerActor(selfAddr : InetSocketAddress, actorRef
 
 
 
+object Summing extends App {
+
+  implicit val ac = ActorSystem("GlobalActorSystem")
+  val addr1 = Neighbour(1, new InetSocketAddress(8081))
+  val addr2 = Neighbour(2, new InetSocketAddress(8082))
+  val addr3 = Neighbour(3, new InetSocketAddress(8083))
+
+  //  val crdt1 = GCounterDeltaCRDT(1, 2000, new InetSocketAddress(8081) , List(addr2, addr3))
+  val crdt1 = SummingDeltaCRDT(1, 4000, new InetSocketAddress(8081) , List(addr2))
+
+  val crdt1Actor = ac.actorOf(Props(CRDTReplicaActor(crdt1)))
+
+
+  //  val crdt2 = GCounterDeltaCRDT(2, 2000, new InetSocketAddress(8082), List(addr1, addr3))
+  val crdt2 = SummingDeltaCRDT(2, 4000, new InetSocketAddress(8082), List(addr1))
+  val crdt2Actor = ac.actorOf(Props( CRDTReplicaActor(crdt2)))
+
+  //  val crdt3 = GCounterDeltaCRDT(3, 2000, new InetSocketAddress(8083) , List(addr1, addr2))
+  //  val crdt3Actor = ac.actorOf(Props( CRDTReplicaActor(crdt3)))
+  //
+
+  val replica1 = ac.actorOf(Props( TcpServer(new InetSocketAddress(8071), crdt1Actor)))
+  val replica2 = ac.actorOf(Props( TcpServer(new InetSocketAddress(8072), crdt2Actor)))
+  //  val replica3 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8073), crdt3Actor)))
+
+
+}
+//
+
+
 //object t extends App {
 //
+//  //  replicaId : Int,
+//  //  syncInterval : Int,
+//  //  addr : InetSocketAddress,
+//  //  neighbours : List[InetSocketAddress]
 //  implicit val ac = ActorSystem("GlobalActorSystem")
 //  val addr1 = Neighbour(1, new InetSocketAddress(8081))
 //  val addr2 = Neighbour(2, new InetSocketAddress(8082))
 //  val addr3 = Neighbour(3, new InetSocketAddress(8083))
 //
 ////  val crdt1 = GCounterDeltaCRDT(1, 2000, new InetSocketAddress(8081) , List(addr2, addr3))
-//      val crdt1 = SummingDeltaCRDT(1, 4000, new InetSocketAddress(8081) , List(addr2))
+//    val crdt1 = GCounterDeltaCRDT(1, 4000, new InetSocketAddress(8081) , List(addr2))
 //
-//  val crdt1Actor = ac.actorOf(Props(CRDTReplicaActor(crdt1)))
-//
-//
+//  val crdt1Actor = ac.actorOf(Props(new CRDTReplicaActor(crdt1)))
+////
+////
 ////  val crdt2 = GCounterDeltaCRDT(2, 2000, new InetSocketAddress(8082), List(addr1, addr3))
-//      val crdt2 = SummingDeltaCRDT(2, 4000, new InetSocketAddress(8082), List(addr1))
-//  val crdt2Actor = ac.actorOf(Props( CRDTReplicaActor(crdt2)))
-//
+//    val crdt2 = GCounterDeltaCRDT(2, 4000, new InetSocketAddress(8082), List(addr1))
+//  val crdt2Actor = ac.actorOf(Props(new CRDTReplicaActor(crdt2)))
+////
 ////  val crdt3 = GCounterDeltaCRDT(3, 2000, new InetSocketAddress(8083) , List(addr1, addr2))
-////  val crdt3Actor = ac.actorOf(Props( CRDTReplicaActor(crdt3)))
-//  //
-//
-//  val replica1 = ac.actorOf(Props( TcpServer(new InetSocketAddress(8071), crdt1Actor)))
-//  val replica2 = ac.actorOf(Props( TcpServer(new InetSocketAddress(8072), crdt2Actor)))
+////  val crdt3Actor = ac.actorOf(Props(new CRDTReplicaActor(crdt3)))
+//////
+////
+//  val replica1 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8071), crdt1Actor)))
+//  val replica2 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8072), crdt2Actor)))
 ////  val replica3 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8073), crdt3Actor)))
 //
 //
 //}
-//
-
-
-object t extends App {
-
-  //  replicaId : Int,
-  //  syncInterval : Int,
-  //  addr : InetSocketAddress,
-  //  neighbours : List[InetSocketAddress]
-  implicit val ac = ActorSystem("GlobalActorSystem")
-  val addr1 = Neighbour(1, new InetSocketAddress(8081))
-  val addr2 = Neighbour(2, new InetSocketAddress(8082))
-  val addr3 = Neighbour(3, new InetSocketAddress(8083))
-
-//  val crdt1 = GCounterDeltaCRDT(1, 2000, new InetSocketAddress(8081) , List(addr2, addr3))
-    val crdt1 = GCounterDeltaCRDT(1, 4000, new InetSocketAddress(8081) , List(addr2))
-
-//  val crdt1Actor = ac.actorOf(Props(new CRDTReplicaActor(crdt1)))
-//
-//
-//  val crdt2 = GCounterDeltaCRDT(2, 2000, new InetSocketAddress(8082), List(addr1, addr3))
-////    val crdt2 = GCounterDeltaCRDT(2, 4000, new InetSocketAddress(8082), List(addr1))
-//  val crdt2Actor = ac.actorOf(Props(new CRDTReplicaActor(crdt2)))
-//
-//  val crdt3 = GCounterDeltaCRDT(3, 2000, new InetSocketAddress(8083) , List(addr1, addr2))
-//  val crdt3Actor = ac.actorOf(Props(new CRDTReplicaActor(crdt3)))
-////
-//
-//  val replica1 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8071), crdt1Actor)))
-//  val replica2 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8072), crdt2Actor)))
-//  val replica3 = ac.actorOf(Props(new TcpServer(new InetSocketAddress(8073), crdt3Actor)))
-
-
-}
 
 ////Launch three replicas of GrowOnlySetDeltaCRDT on 3 random ports and start sending messages
 ////Define the three replicas to have a sync interval and they are all each others neighbours, and using
@@ -314,9 +321,10 @@ case class TcpServer(addr : InetSocketAddress, actorRef : ActorRef)(implicit val
       sender ! Register(self)
       context.become {
         case Received(data) =>
-//          val preAggregateSet = WindowPartialComputation(SET, data.utf8String.trim.toInt.toByte)
-          val preAggregateCount = WindowPartialComputation(AggType.COUNT, 1.toByte)
-          actorRef ! preAggregateCount
+          //          val preAggregateSet = WindowPartialComputation(SET, data.utf8String.trim.toInt.toByte)
+          //          val preAggregateCount = WindowPartialComputation(COUNT, 1.toByte)
+          val preAggregateSum = WindowPartialComputation(AggType.SUM, data.utf8String.trim.toDouble.toByte)
+          actorRef ! preAggregateSum
 
         case Close     =>
           context.stop(self)

@@ -60,18 +60,21 @@ case class SummingDeltaCRDT(
   override def update(write: Double): Unit = synchronized {
     val idx = id - 1
     if(isPos(write)) {
-      posVerVec.modifyAtIndex(idx, write)
+      val oldPos = posVerVec.atIndex(idx)
+      posVerVec.modifyAtIndex(idx, oldPos + write)
       deltaBuffer.add(id, WriteOp.LOCAL, PositiveValueAdd(write))
     }
     else {
-      negVerVec.modifyAtIndex(idx, -write)
+      val oldNeg = negVerVec.atIndex(idx)
+      val newNeg = -write
+      negVerVec.modifyAtIndex(idx, oldNeg + newNeg)
       deltaBuffer.add(id, WriteOp.LOCAL, NegativeValueAdd(write))
     }
   }
 
   override def query: Double = synchronized {
     val totalPos = posVerVec.viewOverState.sum
-    val totalNeg = posVerVec.viewOverState.sum
+    val totalNeg = negVerVec.viewOverState.sum
     totalPos - totalNeg
   }
 
@@ -79,5 +82,5 @@ case class SummingDeltaCRDT(
 
   override def getNeighbours: List[Neighbour] = neighbours
 
-  private def isPos(write : Double) = write < 0
+  private def isPos(write : Double) = write >= 0
 }

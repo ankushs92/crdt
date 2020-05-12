@@ -14,7 +14,7 @@ case class GCounterDeltaCRDT(
                               syncInterval : Int,
                               addr : InetSocketAddress,
                               neighbours : List[Neighbour])
-                              extends DeltaCRDTReplica[Int, GCounterDeltaGroup ,GCounterPayload, GCounterDeltaBuffer, GCounterState, Int] {
+  extends DeltaCRDTReplica[Int, GCounterDeltaGroup ,GCounterPayload, GCounterDeltaBuffer, GCounterState, Int] {
 
   private val verVec = bottom.verVec
   private val deltaBuffer = new GCounterDeltaBuffer(id)

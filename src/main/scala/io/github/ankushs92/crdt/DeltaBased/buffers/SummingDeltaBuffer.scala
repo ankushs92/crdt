@@ -42,16 +42,16 @@ class SummingDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, SummingDeltaA
     local ++ filtered
   }
 
-  override def add(id: Int, mode: WriteOp.Value, write: SummingDeltaAdd): Unit =  {
-    val recValue = write.getValue
+  override def add[W >: SummingDeltaAdd](id: Int, mode: WriteOp.Value, write: W): Unit =  {
+    val recValue = write.asInstanceOf[SummingDeltaAdd].getValue
     mode match {
       case WriteOp.LOCAL =>
         write match {
           case PositiveValueAdd(_) =>
-            localPosValue += localPosValue + recValue
+            localPosValue += recValue
             posIncremented = true
           case NegativeValueAdd(_) =>
-            localNegValue += localNegValue + recValue
+            localNegValue += recValue
             negIncremented = true
         }
         sendLocal = true
@@ -72,7 +72,7 @@ class SummingDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, SummingDeltaA
             write match {
               case PositiveValueAdd(_) =>
                 recDeltaGroups.put(id, SummingDeltaGroup(id, recValue, BOTTOM_VALUE, posPresent = true, negPresent = false))
-              case PositiveValueAdd(_) =>
+              case NegativeValueAdd(_) =>
                 recDeltaGroups.put(id, SummingDeltaGroup(id, BOTTOM_VALUE, recValue, posPresent = false, negPresent = true))
             }
         }
@@ -93,6 +93,10 @@ class SummingDeltaBuffer(replicaId : Int) extends DeltaBuffer[Int, SummingDeltaA
         ccOptimizationMap.remove(deltaGroup)
       }
   }
+
+  private def localDeltaGroup = "[" + localPosValue + "," + localNegValue + "]"
+  override def toString: String = "Local Delta groups: " + localDeltaGroup + " Rec delta groups" + recDeltaGroups + " ccOptimizationMap " + ccOptimizationMap
+
 }
 
 

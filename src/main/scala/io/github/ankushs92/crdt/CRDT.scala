@@ -31,7 +31,7 @@ trait CRDTReplica[StateType, State, QueryResult]  {
 
 }
 
-trait StateCRDTReplica[StateType, State <: Payload[State], QueryResult] extends CRDTReplica[StateType, State, QueryResult]{
+trait StateCRDTReplica[StateType, State <: Payload, QueryResult] extends CRDTReplica[StateType, State, QueryResult]{
 
   def merge(replicaPayload : State) : State
 
@@ -40,12 +40,12 @@ trait StateCRDTReplica[StateType, State <: Payload[State], QueryResult] extends 
 }
 
 trait DeltaCRDTReplica[
-    StateType,
-    DeltaBufferQueryType,
-    DeltaPayload <: Payload[DeltaPayload],
-    DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
-    State,
-    QueryResult] extends CRDTReplica[StateType, State, QueryResult] {
+  StateType,
+  DeltaBufferQueryType,
+  DeltaPayload <: Payload,
+  DeltaBufferType <: DeltaBuffer[Int, DeltaBufferAdd, DeltaBufferQueryType],
+  State,
+  QueryResult] extends CRDTReplica[StateType, State, QueryResult] {
 
   //Onlt meant for debugging
   def getDeltaBuffer : DeltaBufferType

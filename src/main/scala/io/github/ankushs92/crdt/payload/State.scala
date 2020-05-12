@@ -10,6 +10,7 @@ import io.github.ankushs92.crdt.util.Json
 import scala.collection.mutable
 
 
+
 trait Metadata {
   def getNbrReplicaId : Int
   def getCrdtType : String
@@ -19,16 +20,14 @@ trait CRDTState[T] {
 
 }
 
-trait Payload[T] extends Metadata {
-  def getBytes (implicit m : Manifest[T]): ByteBuffer
-  def from(bytes : ByteBuffer) : T
+trait Payload extends Metadata {
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-case class SummingPayload(nbrReplicaId : Int, crdtType : String, payload : Iterable[SummingDeltaGroup]) extends Payload[SummingPayload]  {
-  override def getBytes(implicit m: Manifest[SummingPayload]): ByteBuffer = ByteBuffer.wrap(new JsonSerde[SummingPayload].serialize(this).getBytes)
-
-  override def from(bytes: ByteBuffer): SummingPayload = Json.toObject(bytes.toString)
+case class SummingPayload(nbrReplicaId : Int, crdtType : String, payload : Iterable[SummingDeltaGroup]) extends Payload {
+  //  override def getBytes(implicit m: Manifest[SummingPayload]): ByteBuffer = ByteBuffer.wrap(new JsonSerde[SummingPayload].serialize(this).getBytes)
+  //
+  //  override def from(bytes: ByteBuffer): SummingPayload = Json.toObject(bytes.toString)
 
   override def getNbrReplicaId: Int = nbrReplicaId
 
@@ -36,10 +35,10 @@ case class SummingPayload(nbrReplicaId : Int, crdtType : String, payload : Itera
 }
 
 
-case class GrowOnlySetPayload[T](nbrReplicaId : Int, crdtType : String, payload : Set[T]) extends Payload[GrowOnlySetPayload[T]]  {
-  override def getBytes(implicit m: Manifest[GrowOnlySetPayload[T]]): ByteBuffer = ByteBuffer.wrap(new JsonSerde[GrowOnlySetPayload[T]].serialize(this).getBytes)
-
-  override def from(bytes: ByteBuffer): GrowOnlySetPayload[T] = Json.toObject(bytes.toString)
+case class GrowOnlySetPayload[T](nbrReplicaId : Int, crdtType : String, payload : Set[T]) extends Payload  {
+  //  override def getBytes(implicit m: Manifest[GrowOnlySetPayload[T]]): ByteBuffer = ByteBuffer.wrap(new JsonSerde[GrowOnlySetPayload[T]].serialize(this).getBytes)
+  //
+  //  override def from(bytes: ByteBuffer): GrowOnlySetPayload[T] = Json.toObject(bytes.toString)
 
   override def getNbrReplicaId: Int = nbrReplicaId
 
@@ -47,11 +46,11 @@ case class GrowOnlySetPayload[T](nbrReplicaId : Int, crdtType : String, payload 
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-case class GCounterPayload(nbrReplicaId : Int, crdtType : String, payload : Iterable[GCounterDeltaGroup]) extends Payload[GCounterPayload] {
+case class GCounterPayload(nbrReplicaId : Int, crdtType : String, payload : Iterable[GCounterDeltaGroup]) extends Payload {
 
-  override def getBytes(implicit m : Manifest[GCounterPayload]) : ByteBuffer = ByteBuffer.wrap(new JsonSerde[GCounterPayload].serialize(this).getBytes)
-
-  override def from(bytes: ByteBuffer): GCounterPayload = Json.toObject(bytes.toString)
+  //  override def getBytes(implicit m : Manifest[GCounterPayload]) : ByteBuffer = ByteBuffer.wrap(new JsonSerde[GCounterPayload].serialize(this).getBytes)
+  //
+  //  override def from(bytes: ByteBuffer): GCounterPayload = Json.toObject(bytes.toString)
 
   override def getNbrReplicaId: Int = nbrReplicaId
 

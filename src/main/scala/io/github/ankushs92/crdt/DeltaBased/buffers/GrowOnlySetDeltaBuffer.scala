@@ -20,8 +20,8 @@ class GrowOnlySetDeltaBuffer[Value](replicaId : Int) extends DeltaBuffer[Int, Gr
             case None => false
           }
           !alreadySentToReplica
+        }
       }
-    }
 
     val filteredLocal = localDeltaGroup.filter { localVal =>
       val alreadySentToReplica = ccOptimizationMap.get(localVal) match {
@@ -33,9 +33,9 @@ class GrowOnlySetDeltaBuffer[Value](replicaId : Int) extends DeltaBuffer[Int, Gr
     filteredLocal ++ filteredRec
   }
 
-  override def add(id: Int, writeOp: WriteOp.Value, write: GrowOnlySetDeltaBufferAdd[Value]): Unit = {
-    val value = write.value
-    writeOp match {
+  override def add[W >: GrowOnlySetDeltaBufferAdd[Value]](id: Int, mode: WriteOp.Value, write: W): Unit = {
+    val value = write.asInstanceOf[GrowOnlySetDeltaBufferAdd[Value]].value
+    mode match {
       case WriteOp.LOCAL =>
         if (!localDeltaGroup.contains(value)) {
           localDeltaGroup += value
@@ -74,4 +74,5 @@ class GrowOnlySetDeltaBuffer[Value](replicaId : Int) extends DeltaBuffer[Int, Gr
   override def toString: String = "Local Delta groups: " + localDeltaGroup + " Rec delta groups" + recDeltaGroups + " ccOptimizationMap " + ccOptimizationMap
 
   override def getReplicaId: Int = replicaId
+
 }
